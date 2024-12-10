@@ -9,6 +9,42 @@ CS271_Final/        # Top-level repository
 ├── README.md  
 ├── .gitignore      # Global ignore rules
 ├── problem1/       # Directory for Problem 1
+│   ├── README.md
+│   ├── scripts/
+│   │   ├── generate_boring_images.py
+│   │   ├── generate_spiral_images.py
+│   │   ├── generate_digraph_images.py
+│   │   └── generate_entropy_images.py
+│   ├── data/
+│   │   ├── A/
+│   │   │   ├── sample1.dat
+│   │   │   ├── sample2.dat
+│   │   │   └── ...
+│   │   ├── B/
+│   │   │   ├── sample1.dat
+│   │   │   └── ...
+│   │   ├── C/
+│   │   └── ...
+│   │   ├── D/
+│   │   └── ...
+│   │   ├── E/
+│   │   └── ...
+│   │   └── unknown/
+│   │       └── ...
+│   ├── outputs/
+│   │   ├── boring/
+│   │   │   ├── A/
+│   │   │   │   ├── sample1.png
+│   │   │   │   └── ...
+│   │   │   ├── B/
+│   │   │   │   └── ...
+│   │   │   └── ...
+│   │   ├── spiral/
+│   │   │   └── ...
+│   │   ├── digraph/
+│   │   │   └── ...
+│   │   └── entropy/
+│   │       └── ...
 ├── problem2/       # Directory for Problem 2
 └── problem3/       # Directory for Problem 3
 ```
