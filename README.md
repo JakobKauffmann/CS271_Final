@@ -17,11 +17,11 @@ CS271_Final/        # Top-level repository
 │   │   └── generate_entropy_images.py
 │   ├── data/
 │   │   ├── A/
-│   │   │   ├── sample1.dat
-│   │   │   ├── sample2.dat
+│   │   │   ├── A_1.dat
+│   │   │   ├── A_2.dat
 │   │   │   └── ...
 │   │   ├── B/
-│   │   │   ├── sample1.dat
+│   │   │   ├── B_1.dat
 │   │   │   └── ...
 │   │   ├── C/
 │   │   └── ...
@@ -34,7 +34,7 @@ CS271_Final/        # Top-level repository
 │   ├── outputs/
 │   │   ├── boring/
 │   │   │   ├── A/
-│   │   │   │   ├── sample1.png
+│   │   │   │   ├── A_1.png
 │   │   │   │   └── ...
 │   │   │   ├── B/
 │   │   │   │   └── ...
