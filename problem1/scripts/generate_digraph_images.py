@@ -44,7 +44,7 @@ def worker(sample, save_path):
     image_np = digraph_frequency(np.array(sample.data))
     image_tensor = torch.tensor(image_np, dtype=torch.float32).unsqueeze(0)
     image = toimage_tf(image_tensor)
-    image.save(f"{save_path}/{sample.name}.png")
+    image.save(f"{save_path}/{sample.name}_digraph.png")
 
 
 @click.command()

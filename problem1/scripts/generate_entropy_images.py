@@ -83,7 +83,7 @@ def worker(sample, save_path):
     toimage_tf = ToPILImage()
     image_tensor = transform_into_entropy_image(sample)
     image = toimage_tf(image_tensor)
-    image.save(f"{save_path}/{sample.name}.png")
+    image.save(f"{save_path}/{sample.name}_entropy.png")
 
 
 @click.command()
