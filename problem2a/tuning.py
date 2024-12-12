@@ -13,6 +13,8 @@ from ray.train import CheckpointConfig
 import click
 from PIL import Image
 
+import json
+
 def load_data(data_dir: str, resize: bool = False):
     if resize:
         transform = transforms.Compose(
@@ -195,6 +197,22 @@ class TuneCNN(ray.tune.Trainable):
     is_flag=True,
     help="Resize the images to 100x100"
 )
+@click.option(
+    "--lr",
+    type=float,
+)
+@click.option(
+    "--batch-size",
+    type=int,
+)
+@click.option(
+    "--num-conv-blocks",
+    type=int,
+)
+@click.option(
+    "--fc-hidden-units",
+    type=int,
+)
 def tune_cnn(
     dataset,
     save_best_model,
@@ -203,17 +221,21 @@ def tune_cnn(
     force_cpu,
     trial_name,
     ray_dir,
-    resize
+    resize,
+    lr,
+    batch_size,
+    num_conv_blocks,
+    fc_hidden_units
 ):
     if force_cpu:
         ray.init(num_gpus=0)
         print("--force-cpu flag detected, forcing CPU training by initializing Ray with num_gpus=0")
     # sample only values between around 0.0001 and 0.00001
     config = {
-        "lr": tune.choice([0.001, 0.002, 0.003, 0.0001]),
-        "batch_size": tune.choice([32, 64, 128]),
-        "num_conv_blocks": tune.choice([3, 4, 5]),
-        "fc_hidden_units": tune.choice([128, 256, 512]),
+        "lr": lr or tune.choice([0.001, 0.002, 0.003, 0.0001]),
+        "batch_size": batch_size or tune.choice([32, 64, 128]),
+        "num_conv_blocks": num_conv_blocks or tune.choice([3, 4, 5]),
+        "fc_hidden_units": fc_hidden_units or tune.choice([128, 256, 512]),
         "data_dir": dataset,
         "resize": resize
     }
@@ -221,7 +243,7 @@ def tune_cnn(
         metric="testing_loss",
         mode="min",
         max_t=num_epochs,
-        grace_period=5,
+        grace_period=min(num_epochs, 5),
         reduction_factor=2
     )
 
@@ -254,6 +276,7 @@ def tune_cnn(
 
     best_trial = result.get_best_trial("testing_loss", "min", "last")
     print(f"Best trial config: {best_trial.config}")
+    print(f"Best trial id: {best_trial.trial_id}")
     print(
         f"Best trial final testing loss: {best_trial.last_result['testing_loss']}")
     print(
@@ -263,10 +286,18 @@ def tune_cnn(
         trial=best_trial, metric="testing_accuracy", mode="max")
     
     best_model_path = os.path.join(save_best_model, f"{trial_name}_best_model.pth")
+    best_metadata_path = os.path.join(save_best_model, f"{trial_name}_best_metadata.json")
     print(f"Saving the instance of the best model with highest accuracy to {best_model_path!r}")
     with best_checkpoint.as_directory() as checkpoint_dir:
         model = torch.load(os.path.join(checkpoint_dir, "model.pth"))
         torch.save(model, best_model_path)
+        with open(best_metadata_path, "w") as f:
+            meta = {
+                "trial_id": best_trial.trial_id,
+                "config": best_trial.config,
+            }
+            json.dump(meta, f)
+
 
 
 if __name__ == "__main__":
