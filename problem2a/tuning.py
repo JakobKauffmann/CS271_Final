@@ -240,10 +240,12 @@ def tune_cnn(
     # get the basename of the dataset
     dataset_basename = os.path.basename(dataset)
     default_name = f"cnntune-{dataset_basename}"
+
+    trial_name = trial_name or default_name
     result = tune.run(
         trainable,
         config=config,
-        name=trial_name or default_name,
+        name=trial_name,
         num_samples=num_samples,
         scheduler=scheduler,
         checkpoint_config=checkpoint_config,
@@ -260,7 +262,7 @@ def tune_cnn(
     best_checkpoint = result.get_best_checkpoint(
         trial=best_trial, metric="testing_accuracy", mode="max")
     
-    best_model_path = os.path.join(save_best_model, "best_model.pth")
+    best_model_path = os.path.join(save_best_model, f"{trial_name}_best_model.pth")
     print(f"Saving the instance of the best model with highest accuracy to {best_model_path!r}")
     with best_checkpoint.as_directory() as checkpoint_dir:
         model = torch.load(os.path.join(checkpoint_dir, "model.pth"))
