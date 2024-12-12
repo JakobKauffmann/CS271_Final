@@ -208,10 +208,11 @@ def tune_cnn(
     if force_cpu:
         ray.init(num_gpus=0)
         print("--force-cpu flag detected, forcing CPU training by initializing Ray with num_gpus=0")
+    # sample only values between around 0.0001 and 0.00001
     config = {
-        "lr": tune.choice([1e-3, 1e-4, 1e-5]),
+        "lr": tune.choice([0.001, 0.002, 0.003, 0.0001]),
         "batch_size": tune.choice([32, 64, 128]),
-        "num_conv_blocks": tune.choice([3, 4, 5, 6]),
+        "num_conv_blocks": tune.choice([3, 4, 5]),
         "fc_hidden_units": tune.choice([128, 256, 512]),
         "data_dir": dataset,
         "resize": resize
