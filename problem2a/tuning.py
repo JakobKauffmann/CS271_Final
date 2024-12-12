@@ -228,6 +228,11 @@ class TuneCNN(ray.tune.Trainable):
     "--fc-hidden-units",
     type=int,
 )
+@click.option(
+    "--checkpoint/--no-checkpoint",
+    is_flag=True,
+    default=True,
+)
 def tune_cnn(
     dataset,
     save_best_model,
@@ -241,7 +246,8 @@ def tune_cnn(
     lr,
     batch_size,
     num_conv_blocks,
-    fc_hidden_units
+    fc_hidden_units,
+    checkpoint,
 ):
     if force_cpu:
         ray.init(num_gpus=0)
@@ -273,7 +279,7 @@ def tune_cnn(
     else:
         trainable = TuneCNN
     checkpoint_config = CheckpointConfig(
-        checkpoint_frequency=1,
+        checkpoint_frequency=1 if checkpoint else 0,
         checkpoint_at_end=True,
     )
     # get the basename of the dataset
@@ -301,6 +307,9 @@ def tune_cnn(
 
     best_checkpoint = result.get_best_checkpoint(
         trial=best_trial, metric="testing_accuracy", mode="max")
+    if best_checkpoint is None:
+        print("No best checkpoint found, skipping saving the best model")
+        return
     
     best_model_path = os.path.join(save_best_model, f"{trial_name}_best_model.pth")
     best_metadata_path = os.path.join(save_best_model, f"{trial_name}_best_metadata.json")
