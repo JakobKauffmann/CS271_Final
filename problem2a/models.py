@@ -33,8 +33,7 @@ class CNN2D(torch.nn.Module):
 
     def __init__(
             self,
-            conv1_num_kernels: int,
-            conv2_num_kernels: int,
+            num_conv_blocks: int,
             fc_hidden_units: int,
             image_height: int,
             image_width: int,
@@ -44,23 +43,42 @@ class CNN2D(torch.nn.Module):
         super(CNN2D, self).__init__()
         self.num_classes = num_classes
         self.input_channels = input_channels
-        self.conv1, new_dims_after_one = self.convolutional_block(
-            in_channels=self.input_channels, out_channels=conv1_num_kernels, kernel_size=3)
-        self.conv2, new_dims_after_second = self.convolutional_block(
-            in_channels=conv1_num_kernels, out_channels=conv2_num_kernels, kernel_size=3)
-        final_h, final_w = new_dims_after_second(
-            *new_dims_after_one(image_height=image_height, image_width=image_width))
-        output_dim = final_h * final_w * conv2_num_kernels
+        self.total_conv_blocks = num_conv_blocks
+        self._current_input_channels = input_channels
+        initial_num_kernels = 64
+        self.convs, flattened_dim_cal = self.build_convolutional_layers(
+            initial_num_kernels)
+        output_dim = flattened_dim_cal(image_height, image_width)
         self.fc = self.sequential_network(
             input_dim=output_dim, hidden_dim=fc_hidden_units, output_dim=num_classes)
+
+    def build_convolutional_layers(self, initial_num_kernels: int):
+        # make convolutional blocks by doing two convolutional layers
+        # followed by max pool, and repeat
+        layers = []
+        funcs = []
+        for _ in range(self.total_conv_blocks):
+            block, func = self.convolutional_block(
+                in_channels=self._current_input_channels,
+                out_channels=initial_num_kernels,
+                kernel_size=3
+            )
+            self._current_input_channels = initial_num_kernels
+            initial_num_kernels *= 2
+            layers.append(block)
+            funcs.append(func)
+        def flattened_dim_cal(h, w):
+            for f in funcs:
+                h, w = f(h, w)
+            return h*w*self._current_input_channels
+        return torch.nn.Sequential(*layers), flattened_dim_cal
         
     def forward(self, x: torch.Tensor):
         # handle the case where the input is a 3D tensor
         # as this always assumes a batch
         if len(x.shape) == 3:
             x = x.unsqueeze(0)
-        x = self.conv1(x)
-        x = self.conv2(x)
+        x = self.convs(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
         # softmaxed
@@ -89,7 +107,7 @@ class CNN2D(torch.nn.Module):
         nn = torch.nn.Sequential(
             torch.nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
                             kernel_size=kernel_size, stride=stride),
-            torch.nn.Sigmoid(),
+            torch.nn.ReLU(),
             torch.nn.MaxPool2d(kernel_size=2, stride=2),
             torch.nn.Dropout(0.3)
         )
@@ -100,6 +118,10 @@ class CNN2D(torch.nn.Module):
     def sequential_network(self, input_dim: int, hidden_dim: int, output_dim: int):
         return torch.nn.Sequential(
             torch.nn.Linear(input_dim, hidden_dim),
-            torch.nn.Sigmoid(),
-            torch.nn.Linear(hidden_dim, output_dim)
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_dim, hidden_dim*2),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_dim*2, hidden_dim*4),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_dim*4, output_dim)
         )

@@ -59,11 +59,10 @@ class TuneCNN(ray.tune.Trainable):
         self.trainset, self.testset, h, w = load_data(self.data_dir, resize=self.resize)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = CNN2D(
-            conv1_num_kernels=config["conv1_num_kernels"],
-            conv2_num_kernels=config["conv2_num_kernels"],
+            num_conv_blocks=config["num_conv_blocks"],
             fc_hidden_units=config["fc_hidden_units"],
             image_height=h,
-            image_width=w
+            image_width=w,
         )
         self.optimizer = torch.optim.AdamW(
             self.model.parameters(), lr=config["lr"]
@@ -210,10 +209,9 @@ def tune_cnn(
         ray.init(num_gpus=0)
         print("--force-cpu flag detected, forcing CPU training by initializing Ray with num_gpus=0")
     config = {
-        "lr": tune.loguniform(1e-4, 1e-1),
+        "lr": tune.choice([1e-3, 1e-4, 1e-5]),
         "batch_size": tune.choice([32, 64, 128]),
-        "conv1_num_kernels": tune.choice([32, 64, 128]),
-        "conv2_num_kernels": tune.choice([64, 128, 256]),
+        "num_conv_blocks": tune.choice([3, 4, 5, 6]),
         "fc_hidden_units": tune.choice([128, 256, 512]),
         "data_dir": dataset,
         "resize": resize
@@ -225,6 +223,7 @@ def tune_cnn(
         grace_period=5,
         reduction_factor=2
     )
+
     os.makedirs(save_best_model, exist_ok=True)
     # detect gpus and use if available and not forcing to use cpu
     if torch.cuda.is_available() and not force_cpu:
@@ -242,8 +241,8 @@ def tune_cnn(
     default_name = f"cnntune-{dataset_basename}"
     result = tune.run(
         trainable,
-        name=trial_name or default_name,
         config=config,
+        name=trial_name or default_name,
         num_samples=num_samples,
         scheduler=scheduler,
         checkpoint_config=checkpoint_config,
@@ -258,7 +257,7 @@ def tune_cnn(
         f"Best trial final testing accuracy: {best_trial.last_result['testing_accuracy']}")
 
     best_checkpoint = result.get_best_checkpoint(
-        trial=best_trial, metric="accuracy", mode="max")
+        trial=best_trial, metric="testing_accuracy", mode="max")
     
     best_model_path = os.path.join(save_best_model, "best_model.pth")
     print(f"Saving the instance of the best model with highest accuracy to {best_model_path!r}")
