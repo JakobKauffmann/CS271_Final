@@ -1,6 +1,6 @@
 import ray
 from torchvision import transforms
-from problem2a.datasets import ExcludeUnknownDataset
+from problem2a.datasets import ExcludeUnknownDataset, InMemoryExcludeUnknownDataset
 from problem2a.models import CNN2D
 from torch.utils.data import random_split
 import torch
@@ -15,7 +15,7 @@ from PIL import Image
 
 import json
 
-def load_data(data_dir: str, resize: bool = False):
+def load_data(data_dir: str, resize: bool = False, in_memory: bool = False):
     if resize:
         transform = transforms.Compose(
             [
@@ -34,12 +34,18 @@ def load_data(data_dir: str, resize: bool = False):
         )
         h, w = 256, 256
 
-    dataset = ExcludeUnknownDataset(
-        root=data_dir,
-        transform=transform,
-        loader=Image.open,
-        extensions=(".png",)
+    if in_memory:
+        dataset = InMemoryExcludeUnknownDataset(
+            root=data_dir,
+            transform=transform
         )
+    else:
+        dataset = ExcludeUnknownDataset(
+            root=data_dir,
+            transform=transform,
+            loader=Image.open,
+            extensions=(".png",)
+            )
     
     train_size = int(0.8 * len(dataset))
     test_size = len(dataset) - train_size
@@ -58,7 +64,11 @@ class TuneCNN(ray.tune.Trainable):
     def setup(self, config):
         self.data_dir = config["data_dir"]
         self.resize = config.get("resize", False)
-        self.trainset, self.testset, h, w = load_data(self.data_dir, resize=self.resize)
+        self.trainset, self.testset, h, w = load_data(
+            self.data_dir,
+            resize=self.resize,
+            in_memory=config.get("in_memory", False)
+            )
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = CNN2D(
             num_conv_blocks=config["num_conv_blocks"],
@@ -198,6 +208,11 @@ class TuneCNN(ray.tune.Trainable):
     help="Resize the images to 100x100"
 )
 @click.option(
+    "--in-memory/--no-in-memory",
+    is_flag=True,
+    help="Load the dataset in memory"
+)
+@click.option(
     "--lr",
     type=float,
 )
@@ -222,6 +237,7 @@ def tune_cnn(
     trial_name,
     ray_dir,
     resize,
+    in_memory,
     lr,
     batch_size,
     num_conv_blocks,
@@ -237,7 +253,8 @@ def tune_cnn(
         "num_conv_blocks": num_conv_blocks or tune.choice([3, 4, 5]),
         "fc_hidden_units": fc_hidden_units or tune.choice([128, 256, 512]),
         "data_dir": dataset,
-        "resize": resize
+        "resize": resize,
+        "in_memory": in_memory
     }
     scheduler = ASHAScheduler(
         metric="testing_loss",
